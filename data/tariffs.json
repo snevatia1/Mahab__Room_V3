@@ -1,0 +1,14 @@
+{
+  "regular": {
+    "member_double": 5400,
+    "temp_double": 9900,
+    "extra_adult": 2000,
+    "extra_child": 1000
+  },
+  "special": {
+    "member_double": 6550,
+    "temp_double": 11850,
+    "extra_adult": 2600,
+    "extra_child": 1300
+  }
+}

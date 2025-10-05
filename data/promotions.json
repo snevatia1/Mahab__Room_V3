@@ -1,0 +1,16 @@
+{
+  "promotions": [
+    {
+      "code": "WKDY3FOR2",
+      "name": "Weekday 3 for 2",
+      "desc": "Pay 2 nights, stay 3 on Mon\u2013Thu.",
+      "active": true
+    },
+    {
+      "code": "OFFSEASON",
+      "name": "Off-season special",
+      "desc": "10% off for stays in monsoon",
+      "active": true
+    }
+  ]
+}
