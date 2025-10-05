@@ -41,3 +41,26 @@ nav{margin-left:auto;display:flex;gap:8px}
 .room{padding:10px;border:1px solid #e6eef0;border-radius:12px;background:#fff}
 .room .id{font-weight:600}
 footer{font-size:12px;color:var(--muted);margin-top:8px}
+/* === Calendar size tweaks (mobile-friendly) === */
+:root{
+  --cal-cell-size: 40px;   /* height/width of a day cell */
+  --cal-font-size: 12px;   /* numbers inside cells */
+  --cal-head-font: 13px;
+}
+
+.calendar-grid{
+  grid-template-columns: repeat(7, minmax(var(--cal-cell-size), 1fr));
+  gap: 6px;
+}
+
+.calendar-grid .day{
+  height: var(--cal-cell-size);
+  min-height: var(--cal-cell-size);
+  line-height: var(--cal-cell-size);
+  font-size: var(--cal-font-size);
+  padding: 0;
+}
+
+.calendar .dow, .calendar .month-title{
+  font-size: var(--cal-head-font);
+}
