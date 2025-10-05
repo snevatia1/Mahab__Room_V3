@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Promotions</title>
+  <link rel="icon" href="../assets/logo.png">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+<header class="site-header">
+  <img src="../assets/logo.png" class="logo" alt="Club Logo">
+  <div class="titles"><h1>Promotions</h1><p class="subtitle">Manage offers</p></div>
+  <nav><a href="../" class="button ghost">Back</a></nav>
+</header>
+<main class="container">
+  <section class="card">
+    <h2>Current Promotions</h2>
+    <div id="plist" class="table-wrap"></div>
+  </section>
+</main>
+<script>
+fetch('../data/promotions.json?v='+Date.now())
+ .then(r=>r.json())
+ .then(j=>{
+   const rows = (j.promotions||[]).map(p=>`<tr><td>${p.code}</td><td>${p.name}</td><td>${p.desc}</td><td>${p.active?'Yes':'No'}</td></tr>`).join('');
+   document.getElementById('plist').innerHTML = `<table class="table"><tr><th>Code</th><th>Name</th><th>Description</th><th>Active</th></tr>${rows}</table>`;
+ });
+</script>
+</body></html>
