@@ -14,7 +14,68 @@
   <script>dayjs.extend(dayjs_plugin_isoWeek);dayjs.extend(dayjs_plugin_customParseFormat);</script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
-<body>
+<!-- Local Data Drawer -->
+<div id="localPanel" class="drawer hidden">
+  <div class="drawer-card">
+    <div class="row">
+      <h3>Local data (private)</h3>
+      <button id="btnCloseLocal" class="button ghost">Close</button>
+    </div>
+    <p class="muted">Load your <code>members.csv</code> from this computer. Nothing is uploaded.</p>
+    <div class="grid">
+      <label>Members CSV
+        <input type="file" id="fileMembers" accept=".csv" />
+      </label>
+      <label>Import bookings.json
+        <input type="file" id="fileBookings" accept="application/json,.json" />
+      </label>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <button id="btnExportBookings" class="button">Export bookings.json</button>
+    </div>
+    <p id="localMsg" class="muted"></p>
+  </div>
+</div>
+
+<!-- Local Login Modal -->
+<div id="localLogin" class="dialog hidden">
+  <div class="dialog-card">
+    <h3>Member sign in (Local)</h3>
+    <div class="grid">
+      <label>Member ID
+        <input id="loginMemberId" placeholder="M1234" />
+      </label>
+      <label>Phone last 4 digits
+        <input id="loginLast4" maxlength="4" />
+      </label>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <button id="btnVerifyLocal" class="button">Verify</button>
+      <button id="btnCloseLogin" class="button ghost">Close</button>
+    </div>
+    <p id="loginMsg" class="muted"></p>
+  </div>
+</div>
+
+<!-- My bookings drawer -->
+<div id="myBookings" class="drawer hidden">
+  <div class="drawer-card">
+    <div class="row">
+      <h3>My bookings</h3>
+      <button id="btnCloseBookings" class="button ghost">Close</button>
+    </div>
+    <div id="myBookingsList" class="table-wrap"></div>
+  </div>
+</div>
+
+<!-- include the local-only script (place BEFORE closing body) -->
+<script src="local-mode.js?v=1"></script>
+<body><!-- Local-only controls (data stays on this computer) -->
+<div class="row" style="gap:8px; margin:8px 16px;">
+  <button id="btnLocal" class="button ghost">Local data</button>
+  <button id="btnMyBookings" class="button ghost">My bookings</button>
+</div>
+
 <header class="site-header">
   <img src="assets/logo.png" class="logo" alt="Club Logo">
   <div class="titles">
