@@ -83,15 +83,190 @@ function renderCalendar(container, restricted){
       monthStart.toLocaleString(undefined, {month:'long', year:'numeric'})
     ));
     const head = el('div', {class:'month-grid'});
-    dow.forEach(d => head.a
-                /* --- minimal patch for weekend color + left calendar layout --- */
-main{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1200px;margin:16px auto;padding:0 16px}
-#calendar{grid-column:1/2;background:#fff;border:1px solid #eee;border-radius:12px;padding:12px;max-height:72vh;overflow-y:auto}
-.month{padding:8px 4px 10px;border-top:1px dashed #eee}
-.month:first-child{border-top:0}
-.month-title{font-weight:600;margin:4px 0 8px}
-.month-grid{display:grid;grid-template-columns:repeat(7,40px);gap:6px}
-.weekday-head{font-size:11px;color:#999;text-align:center;margin-bottom:4px}
-.date.weekend{background:#f7f7ff;border-color:#e5e5ff} /* weekend color */
+    dow.forEach(d => head.appendChild(el('div', {class:'weekday-head'}, d)));
+    m.appendChild(head);
+
+    const grid = el('div', {class:'month-grid'});
+    // pad before 1st day
+    for(let i=0;i<monthStart.getDay();i++) grid.appendChild(el('span'));
+
+    for(let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate()+1)){
+      const s = iso(d);
+      const classes = ['date'];
+      const wday = d.getDay();
+      if (wday===0 || wday===6) classes.push('weekend');
+      if (special.has(s)) classes.push('special');
+      if (closed.has(s)) classes.push('closed');
+
+      // selection styling
+      if (checkIn && !checkOut && iso(checkIn)===s) classes.push('selected');
+      if (checkIn && checkOut && (d>=checkIn && d<=checkOut)) classes.push('in-range');
+
+      const avail = roomsAvailableOn(s);
+      const cell = el('div', {class:classes.join(' ')},
+        String(d.getDate()),
+        el('div', {
+          // small count line (inline style to avoid editing CSS file)
+          style:'line-height:1;margin-top:-2px;font-size:10px;color:#666'
+        }, `${avail}`)
+      );
+      cell.addEventListener('click', () => onDateClick(new Date(d), closed.has(s)));
+      grid.appendChild(cell);
+    }
+    m.appendChild(grid);
+    container.appendChild(m);
+
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1);
+  }
+
+  const legend = el('div', {class:'legend'},
+    badge('Weekend'), badge('Special'), badge('Closed'), badge('Selected/Range')
+  );
+  container.appendChild(legend);
+}
+
+function onDateClick(d, isClosed){
+  if (isClosed) return; // cannot select closed dates
+  if (!checkIn || (checkIn && checkOut)){ checkIn = startOfDay(d); checkOut = null; }
+  else if (d > checkIn){ checkOut = startOfDay(d); }
+  else { checkIn = startOfDay(d); checkOut = null; }
+
+  renderCalendar(document.getElementById('calendar'), config.restricted);
+  updateRightPanels();
+}
+
+/* ===================== RIGHT PANELS ===================== */
+function renderFilters(container){
+  container.innerHTML = '';
+  container.appendChild(el('h3',{class:'panel-title'},'Filters'));
+
+  const line1 = el('div',{},
+    labelChk('Wheelchair','f_wc', val => {selection.filters.wc = val; updateRightPanels();}),
+    gap(),
+    labelChk('Pet-friendly','f_pet', val => {selection.filters.pet = val; updateRightPanels();}),
+    gap(),
+    labelChk('AC','f_ac', val => {selection.filters.ac = val; updateRightPanels();}),
+    gap(),
+    labelChk('Group','f_grp', val => {selection.filters.group = val; updateRightPanels();})
+  );
+
+  const line2 = el('div',{style:'margin-top:8px'},
+    el('span',{},'Occupancy: '),
+    num('min', 'f_min', 1, v => {selection.filters.minOcc = v; updateRightPanels();}),
+    el('span', {style:'margin:0 6px'}, 'to'),
+    num('max', 'f_max', 6, v => {selection.filters.maxOcc = v; updateRightPanels();})
+  );
+
+  container.appendChild(line1);
+  container.appendChild(line2);
+}
+function labelChk(text, id, onchg){
+  const i = el('input',{type:'checkbox',id});
+  i.addEventListener('change', e => onchg(e.target.checked));
+  return el('label',{for:id,style:'margin-right:12px'}, text+' ', i);
+}
+function num(ph,id,def,onchg){
+  const i = el('input',{type:'number',id,placeholder:ph,min:'1',value:String(def),style:'width:80px;margin-left:6px'});
+  i.addEventListener('input', e => onchg(Math.max(1, parseInt(e.target.value||'1',10))));
+  return i;
+}
+function gap(){ return el('span',{style:'display:inline-block;width:12px'}); }
+
+// filtering for RIGHT-PANEL ONLY (calendar does NOT use these)
+function filterRooms(){
+  const f = selection.filters;
+  return demoRooms.filter(r => {
+    if (f.wc && !r.wc) return false;
+    if (f.pet && !r.pet) return false;
+    if (f.ac && !r.ac) return false;
+    if (r.min > f.maxOcc) return false;
+    if (r.max < f.minOcc) return false;
+    if (f.group && r.max < 3) return false; // simple demo rule
+    return true;
+  });
+}
+function blockCounts(rooms){
+  const map = {};
+  rooms.forEach(r => map[r.block] = (map[r.block]||0)+1);
+  return map;
+}
+
+function renderRooms(container){
+  container.innerHTML = '';
+  container.appendChild(el('h3',{class:'panel-title'},'Rooms (demo) – load your CSV to replace'));
+
+  const rooms = filterRooms(); // RIGHT ONLY
+  const counts = blockCounts(rooms);
+  const blocksLine = el('div', {style:'margin-bottom:8px'});
+  Object.entries(counts).sort(([a],[b])=>a.localeCompare(b)).forEach(([blk,count])=>{
+    blocksLine.appendChild(el('span',{class:'block-pill'}, `${blk}: ${count} room(s)`));
+  });
+  if (rooms.length===0) blocksLine.appendChild(el('div',{},'No rooms match the selected filters.'));
+  container.appendChild(blocksLine);
+
+  // Selectable room chips
+  const list = el('div');
+  rooms.forEach(r => {
+    const key = r.block + r.num;
+    const chip = el('span', {class:'room-chip' + (selection.rooms.includes(key)?' selected':'')},
+      `${r.block}${r.num} (min ${r.min}/max ${r.max})`
+    );
+    chip.addEventListener('click', () => {
+      const i = selection.rooms.indexOf(key);
+      if (i>=0) selection.rooms.splice(i,1);
+      else selection.rooms.push(key);
+      chip.classList.toggle('selected');
+      updateRightPanels();
+    });
+    list.appendChild(chip);
+  });
+  container.appendChild(list);
+}
+
+function renderSummary(container){
+  container.innerHTML = '';
+  container.appendChild(el('h3',{class:'panel-title'},'Summary'));
+
+  const ci = checkIn ? iso(checkIn) : '—';
+  const co = checkOut ? iso(checkOut) : '—';
+  container.appendChild(el('div', {}, `Check-in: ${ci}`));
+  container.appendChild(el('div', {}, `Check-out: ${co}`));
+
+  let nights = 0;
+  if (checkIn && checkOut && checkOut > checkIn) {
+    nights = Math.max(0, Math.round((checkOut - checkIn)/(1000*60*60*24)));
+  }
+  container.appendChild(el('div', {}, `Nights: ${nights}`));
+  container.appendChild(el('div', {style:'margin-top:6px'}, `Rooms selected: ${selection.rooms.join(', ') || '—'}`));
+  container.appendChild(el('div', {style:'margin-top:6px'}, 'Tip: replace demo with your data/uploads/*.csv to activate real pricing.'));
+}
+
+function updateRightPanels(){
+  renderRooms(document.getElementById('rooms'));
+  renderSummary(document.getElementById('summary'));
+}
+
+/* ===================== Boot ===================== */
+async function main(){
+  const [rules, restricted, lweek, tariff] = await Promise.all([
+    loadJSON('data/config/rules.json'),
+    loadJSON('data/config/restricted_periods.json'),
+    loadJSON('data/config/long_weekends.json'),
+    loadJSON('data/config/tariff.json')
+  ]);
+  config = {rules, restricted, longWeekends:lweek, tariff};
+
+  renderCalendar(document.getElementById('calendar'), restricted);  // calendar shows ONLY date layout + availability count
+  renderFilters(document.getElementById('filters'));                // filters affect ONLY the right panels
+  updateRightPanels();
+}
+
+main().catch(err => {
+  const s = document.getElementById('summary');
+  if (s) s.textContent = 'Error: ' + err.message;
+  console.error(err);
+});
+
+
 
 
