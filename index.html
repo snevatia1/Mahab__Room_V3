@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Club Mahabaleshwar Booking</title>
+  <link rel="stylesheet" href="styles.css?v=5">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+</head>
+<body>
+  <header>
+    <img src="clubmahabaleshwar_logo.png" alt="Club Logo" class="logo" onerror="this.style.display='none'; document.querySelector('.logo-fallback').style.display='block';">
+    <div class="logo-fallback" style="display:none; color:red; font-size:48px; font-weight:bold;">CM Since 1881</div>
+    <h1>The Club Mahabaleshwar - Room Booking (Test Mode)</h1>
+  </header>
+  <section id="calendar">
+    <h2>6-Month Calendar (Oct 2025 - Mar 2026)</h2>
+    <div id="calendar-container"></div>
+  </section>
+  <section id="availability">
+    <h2>Room Availability</h2>
+    <label>Start Date: <input type="date" id="avail-start" onchange="updateAvailability()"></label>
+    <label>End Date: <input type="date" id="avail-end" onchange="updateAvailability()"></label>
+    <div id="avail-results"></div>
+  </section>
+  <button onclick="startBooking()">Start Booking</button>
+  <div id="booking-wizard" style="display:none;">
+    <h2>Booking Wizard for <span id="member-name"></span></h2>
+    <form id="booking-form">
+      <label>Start Date: <input type="date" id="start-date" required onchange="updateEndDate()"></label>
+      <label>End Date: <input type="date" id="end-date" required></label>
+      <div id="filters">
+        <h3>Filters</h3>
+        <label>Wheelchair: <input type="checkbox" id="wheelchair" onchange="updateAvailabilityWizard()"></label>
+        <label>Pets: <input type="checkbox" id="pets" onchange="updateAvailabilityWizard()"></label>
+        <label>AC: <input type="checkbox" id="ac" onchange="updateAvailabilityWizard()"></label>
+        <label>Single: <input type="checkbox" id="single" onchange="updateAvailabilityWizard()"></label>
+        <label>Min Beds: <select id="min-beds" onchange="updateAvailabilityWizard()"><option>1</option><option>2</option></select></label>
+        <label>Max Beds: <select id="max-beds" onchange="updateAvailabilityWizard()"><option>2</option><option>3</option><option>4</option></select></label>
+        <label>Group: <input type="checkbox" id="group" onchange="updateAvailabilityWizard()"></label>
+      </div>
+      <div id="blocks-list"></div>
+      <div id="room-selection" style="display:none;">
+        <h3>Select Room Numbers</h3>
+        <div id="room-list"></div>
+      </div>
+      <label>Total Rooms: <span id="total-rooms">0</span> | Room Nights: <span id="room-nights">0</span></label>
+      <div id="occupants">
+        <h3>Occupants</h3>
+        <label>Members: <select id="members"><option>1</option></select></label>
+        <label>Spouse: <select id="spouse"><option>0</option><option>1</option></select></label>
+        <label>Children Under 10: <select id="child-under10"><option>0</option><option>1</option><option>2</option></select></label>
+        <label>Children Over 10: <select id="child-over10"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+        <label>Senior: <select id="senior"><option>0</option><option>1</option><option>2</option></select></label>
+        <label>Parents: <select id="parents"><option>0</option><option>1</option><option>2</option></select></label>
+        <label>Temp Members: <select id="temp-members"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label>
+        <label>Group Size: <select id="group-size"><option>10</option><!-- up to 38 --></select></label>
+      </div>
+      <div id="veg-nonveg">
+        <h3>Veg/Non-Veg (Must tally with total occupants)</h3>
+        <label>Veg: <input type="range" id="veg" min="0" max="50" value="0" onchange="updateVegNonVeg()"></label>
+        <span id="veg-count">0</span>
+        <label>Non-Veg: <input type="range" id="nonveg" min="0" max="50" value="0" onchange="updateVegNonVeg()"></label>
+        <span id="nonveg-count">0</span>
+      </div>
+      <div id="member-list">
+        <h3>Member Details (Up to 5)</h3>
+      </div>
+      <div id="temp-member-list">
+        <h3>Temp Member Details (Up to 5)</h3>
+      </div>
+      <label>Waiting List: <input type="checkbox" id="waiting-list"></label>
+      <button type="button" onclick="findAvailableRooms()">Find Available</button>
+      <button type="button" onclick="showRoomSelection()">Select Rooms</button>
+      <button type="button" onclick="calculateBooking()">Summary</button>
+      <div id="booking-summary"></div>
+      <label>Confirm: <input type="checkbox" id="confirm-switch" onchange="onConfirm()"></label>
+    </form>
+  </div>
+  <script src="script.js?v=5"></script><script src="calendar.js"></script>
+<script src="availability.js"></script>
+<script src="booking.js"></script>
+<script src="admin.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

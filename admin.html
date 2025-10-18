@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - Club Booking</title>
+  <link rel="stylesheet" href="styles.css?v=1">
+</head>
+<body>
+  <h1>Admin Panel (Test Mode)</h1>
+  <input type="password" id="admin-pass" placeholder="Password">
+  <button onclick="loginAdmin()">Login</button>
+  <div id="admin-content" style="display:none;">
+    <h2>Edit Config (Select File)</h2>
+    <select id="json-select">
+      <option value="tariff">tariff.json</option>
+      <option value="rules">rules.json</option>
+      <option value="restricted_periods">restricted_periods.json</option>
+    </select>
+    <textarea id="edit-json" rows="20" cols="80"></textarea>
+    <button onclick="saveJson()">Save Changes</button>
+    <h2>Simulated Bookings</h2>
+    <ul id="bookings-list"></ul>
+    <h2>Change History</h2>
+    <ul id="history-list"></ul>
+  </div>
+  <script src="script.js?v=1"></script>
+</body>
+</html>

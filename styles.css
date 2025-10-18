@@ -1,0 +1,7 @@
+/* Same as previous */
+.weekend { background: blue; color: white; }
+.special { background: yellow; }
+.partial { background: gray; }
+#blocks-list p { color: black; }
+#veg-nonveg input { width: 200px; }
+#confirm-switch { margin: 20px; }
