@@ -1,0 +1,40 @@
+Block,Room No,Floor,Min Person,Max Person,Airconditioning,Wheel Chair Access,Pets Permitted,Group Booking Permitted
+A ,A-1,1st,1,2,No,Yes,No,Yes
+A ,A-2,1st,2,4,No,Yes,No,Yes
+A ,A-3,1st,1,2,No,Yes,No,Yes
+A ,A-4,1st,2,4,No,Yes,No,Yes
+A ,A-5,1st,2,3,No,Yes,No,Yes
+A ,A-6,1st,2,3,No,Yes,No,Yes
+A ,A-7,1st,1,2,No,Yes,No,Yes
+A ,A-8,1st,1,2,No,Yes,No,Yes
+A ,A-9,G,1,2,No,Yes,No,Yes
+B ,B-1,G,2,4,No,Yes,No,No
+B ,B-2,G,2,4,No,No,No,No
+B ,B-3,G,2,4,No,No,No,No
+B ,B-4,G,2,4,No,No,No,No
+B ,B-5,G,2,4,No,No,No,No
+B ,B-6,G,2,4,No,No,No,No
+B ,B-7,G,2,4,No,No,No,No
+B ,B-8,G,2,4,No,No,No,No
+B ,B-9,G,1,2,No,No,No,No
+Old C ,C-1,G,2,3,Yes,No,No,Yes
+Old C ,C-2,G,2,3,Yes,No,No,Yes
+Old C ,C-3,G,2,3,Yes,No,No,Yes
+Old C ,C-4,G,2,3,Yes,No,No,Yes
+Old C ,C-5,G,2,3,Yes,No,No,Yes
+Old C ,C-6,G,2,3,Yes,No,No,Yes
+New C ,C-7,G,2,2,Yes,No,Yes,Yes
+New C ,C-8,G,2,2,Yes,No,Yes,Yes
+New C ,C-9,G,1,2,Yes,No,Yes,Yes
+New C ,C-10,G,1,2,Yes,No,Yes,Yes
+D ,D-1,G,1,2,Yes,Yes,Yes,No
+D ,D-2,G,1,2,Yes,Yes,Yes,No
+D ,D-3,G,2,3,Yes,Yes,Yes,No
+D ,D-4,G,2,3,Yes,Yes,Yes,No
+Old E ,E-1,G,1,2,Yes,No,Yes,No
+Old E ,E-2,G,1,2,Yes,No,Yes,No
+Old E ,E-3,G,2,3,Yes,No,No,No
+New E  ,E-4,G,2,2,Yes,Yes,No,No
+New E  ,E-5,G,2,2,Yes,Yes,No,No
+New E  ,E-6,G,2,2,Yes,Yes,No,No
+New E  ,E-7,G,2,2,Yes,Yes,No,No
