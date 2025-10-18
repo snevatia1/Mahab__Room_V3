@@ -21,28 +21,12 @@ main{
   max-height:72vh;
   overflow-y:auto;
 }
-.month{
-  padding:8px 4px 10px;
-  border-top:1px dashed #eee;
-}
+.month{padding:8px 4px 10px;border-top:1px dashed #eee}
 .month:first-child{border-top:0}
-.month-title{
-  font-weight:600;
-  margin:4px 0 8px;
-}
-.month-grid{
-  display:grid;
-  grid-template-columns: repeat(7, 40px);
-  gap:6px;
-}
-.weekday-head{
-  font-size:11px;color:#999;text-align:center;margin-bottom:4px;
-}
-.date{
-  display:inline-block;
-  width:40px;height:40px;line-height:40px;text-align:center;
-  border-radius:8px;border:1px solid #eee;cursor:pointer;background:#fff;
-}
+.month-title{font-weight:600;margin:4px 0 8px}
+.month-grid{display:grid;grid-template-columns:repeat(7,40px);gap:6px}
+.weekday-head{font-size:11px;color:#999;text-align:center;margin-bottom:4px}
+.date{display:inline-block;width:40px;height:40px;line-height:40px;text-align:center;border-radius:8px;border:1px solid #eee;cursor:pointer;background:#fff}
 .date.weekend{background:#f7f7ff;border-color:#e5e5ff}
 .date.special{background:#fff7e6;border-color:#ffd591}
 .date.closed{background:#fff1f0;border-color:#ffa39e;text-decoration:line-through;color:#999}
@@ -51,27 +35,33 @@ main{
 .legend{margin-top:8px}
 .badge{display:inline-block;padding:2px 6px;border-radius:999px;background:#f0f0f0;font-size:12px;margin-right:6px}
 
-/* RIGHT: panels (stacked) */
+/* RIGHT: panels */
 #filters,#rooms,#summary{
   grid-column:2/3;
   background:#fff;border:1px solid #eee;border-radius:12px;padding:12px;
 }
 .panel-title{font-weight:600;margin:0 0 8px}
-.filters-row{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
-label{font-size:14px}
-input[type=number], select{height:34px;padding:4px 8px;border:1px solid #e5e5e5;border-radius:8px;background:#fff}
+.double-space{line-height:1.9;margin-bottom:10px}
+.strong{font-weight:600}
+.filters-row{display:flex;flex-wrap:wrap;gap:18px 24px;align-items:center;margin-bottom:12px}
+.select{height:34px;padding:4px 8px;border:1px solid #e5e5e5;border-radius:8px;background:#fff}
+.select.small{height:30px}
 
-/* Blocks: more space, 2 rows (wrap), clickable */
-.blocks-grid{
-  display:flex;flex-wrap:wrap;gap:12px 16px;margin-top:12px
-}
-.block-pill{
-  display:inline-flex;align-items:center;justify-content:center;
-  padding:8px 14px;border-radius:999px;border:1px solid #ddd;background:#f8f8f8;
-  font-size:13px;cursor:pointer;min-width:140px
-}
+.blocks-grid{display:flex;flex-wrap:wrap;gap:12px 18px;margin-top:12px}
+.block-pill{display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;border-radius:999px;border:1px solid #cfe5ff;background:#eaf4ff;font-size:13px;cursor:pointer;min-width:150px}
 .block-pill.active{background:#e6f4ff;border-color:#91caff}
-.room-chip{
-  display:inline-block;padding:6px 10px;border:1px solid #eee;border-radius:999px;margin:6px 6px 0 0;cursor:pointer
-}
+.block-rooms{margin-top:12px}
+.block-rooms-title{font-weight:600;margin-bottom:8px}
+.room-list{display:flex;flex-wrap:wrap;gap:10px 14px}
+.room-row{display:flex;align-items:center;gap:8px}
+.room-btn{padding:6px 10px;border:1px solid #eee;border-radius:999px;background:#fff;cursor:pointer}
+.room-btn.selected{background:#e6f4ff;border-color:#91caff}
+
+.num{width:70px;margin-left:6px}
+.hint{color:#777;font-size:12px;margin-left:6px}
+
+.counts-strip{margin-top:6px}
+
+/* old chip style still used in bottom list if needed */
+.room-chip{display:inline-block;padding:6px 10px;border:1px solid #eee;border-radius:999px;margin:6px 6px 0 0;cursor:pointer}
 .room-chip.selected{background:#e6f4ff;border-color:#91caff}
