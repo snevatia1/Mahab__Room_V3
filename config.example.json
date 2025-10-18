@@ -1,9 +1,0 @@
-{
-  "firebase": null,
-  "payments": {
-    "razorpay_key": null
-  },
-  "promotions": {
-    "source": "local"
-  }
-}
