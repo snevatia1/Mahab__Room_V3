@@ -1,18 +1,6 @@
-// -------- src/app.js (FULL REPLACEMENT) --------
-//
-// CSV HEADERS SUPPORTED (case-insensitive):
-// Rooms inventory  -> data/uploads/rooms.csv  (or "Room Classification List.csv")
-//   Block, Room No, Floor, Min Person, Max Person,
-//   Airconditioning, Wheel Chair Access, Pets Permitted, Group Booking Permitted
-//
-// Optional bookings -> data/uploads/bookings.csv
-//   BookingID, CheckIn, CheckOut, Block, Room No, Status
-//   - Dates in YYYY-MM-DD
-//   - Status: Confirmed (counts as booked), Held (counts as booked), Cancelled (ignored)
-//
-// With bookings.csv present, the calendar shows per-date available rooms = total - booked.
-// Right-panel counts also respect bookings if both Check-in and Check-out are selected.
+// ===== src/app.js (FULL REPLACEMENT) =====
 
+// Tiny DOM helpers
 function el(tag, attrs={}, ...children){
   const n = document.createElement(tag);
   Object.entries(attrs).forEach(([k,v]) => {
@@ -49,27 +37,32 @@ function overlap(aStart,aEnd,bStart,bEnd){ return aStart < bEnd && bStart < aEnd
 
 // -------------------- app state --------------------
 let config = { rules:null, restricted:null, longWeekends:null, tariff:null };
-let checkIn = null;   // inclusive
-let checkOut = null;  // inclusive end-date selection for UI; range used is [checkIn, nextDay(checkOut))
+
+// calendar selection (inclusive for display)
+let checkIn = null;
+let checkOut = null;
+
+// filters + selections
 let selection = {
-  roomsSelected: [],
-  filters: { wc:false, pet:false, ac:false, group:false, minOcc:1, maxOcc:1, blocksIncluded: new Set() }
+  // key -> occupants (>=1 means "selected")
+  roomsSelected: new Map(),
+  filters: { wc:false, pet:false, ac:false, group:false, occ:1, blocksIncluded: new Set(), blockOpen: null },
+  food: { veg:0, nonveg:0 }
 };
+
 let inventory = []; // [{block,num,floor,min,max,ac,wc,pet,groupPerm}]
 let bookings = [];  // [{id,cin,cout,block,num,status}]
 let bookedByDate = {}; // dateISO -> Set('B9','A1',...)
 
-// -------- CSV parsing (robust to comma or tab) --------
-function splitSmart(line, header=false){
-  // pick delimiter by which yields more columns
+// -------- CSV parsing (comma or tab) --------
+function splitSmart(line){
   const comma = line.split(','), tab = line.split('\t');
-  if (tab.length > comma.length) return tab.map(s=>s.trim());
-  return comma.map(s=>s.trim());
+  return (tab.length > comma.length ? tab : comma).map(s=>s.trim());
 }
 function parseCSV(text){
   const lines = text.split(/\r?\n/).filter(x=>x.trim().length);
   if (!lines.length) return [];
-  const header = splitSmart(lines[0], true);
+  const header = splitSmart(lines[0]);
   return lines.slice(1).map(line=>{
     const cells = splitSmart(line);
     const row = {};
@@ -81,11 +74,10 @@ function toBool(v){
   const s = String(v||'').trim().toLowerCase();
   return ['yes','y','true','1'].includes(s);
 }
-function pick(obj, keys){
-  for (const k of keys){ if (obj[k]!==undefined) return obj[k]; }
-  return undefined;
-}
+function pick(obj, keys){ for (const k of keys){ if (obj[k]!==undefined) return obj[k]; } }
 function normalizeRooms(rows){
+  // FINAL HEADERS (case-insensitive):
+  // Block, Room No, Floor, Min Person, Max Person, Airconditioning, Wheel Chair Access, Pets Permitted, Group Booking Permitted
   return rows.map(r=>{
     const room = {
       block: (pick(r, ['Block','BLOCK'])||'').trim(),
@@ -102,7 +94,7 @@ function normalizeRooms(rows){
   }).filter(Boolean);
 }
 function normalizeBookings(rows){
-  // Expect: BookingID, CheckIn, CheckOut, Block, Room No, Status
+  // Optional bookings.csv: BookingID, CheckIn, CheckOut, Block, Room No, Status
   return rows.map(r=>{
     const cin = new Date(String(pick(r,['CheckIn','Check In','From'])||'').trim());
     const cout= new Date(String(pick(r,['CheckOut','Check Out','To'])||'').trim());
@@ -123,7 +115,6 @@ function buildBookedByDate(bookings){
   bookings.forEach(b=>{
     if (b.status === 'cancelled') return;
     const key = b.block + (b.num||'');
-    // Nights are [cin, cout) ; user selects inclusive dates but nights exclude last day
     for (let d = new Date(b.cin); d < b.cout; d = addDays(d,1)){
       const k = iso(d);
       if (!map[k]) map[k] = new Set();
@@ -133,7 +124,7 @@ function buildBookedByDate(bookings){
   return map;
 }
 
-// ------- special/closed sets for coloring (calendar) -------
+// ------- special/closed sets -------
 function buildSpecialSets(restricted){
   const special = new Set(), closed = new Set();
   (restricted.special_periods || []).forEach(p => rng(new Date(p.start), new Date(p.end)).forEach(d => special.add(iso(d))));
@@ -144,8 +135,7 @@ function buildSpecialSets(restricted){
 /* ===================== CALENDAR (LEFT) ===================== */
 function roomsAvailableOn(dateISO){
   const booked = bookedByDate[dateISO] ? bookedByDate[dateISO].size : 0;
-  const total = inventory.length;
-  return Math.max(0, total - booked);
+  return Math.max(0, inventory.length - booked);
 }
 function renderCalendar(container, restricted){
   const {special, closed} = buildSpecialSets(restricted);
@@ -172,23 +162,25 @@ function renderCalendar(container, restricted){
     for(let i=0;i<monthStart.getDay();i++) grid.appendChild(el('span'));
 
     for(let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate()+1)){
-      const dCopy = new Date(d);        // capture per-cell (fixes wrong-date selection)
+      const dCopy = new Date(d); // capture per-cell
       const s = iso(dCopy);
       const classes = ['date'];
       const wday = dCopy.getDay();
       if (wday===0 || wday===6) classes.push('weekend');
       if (special.has(s)) classes.push('special');
       if (closed.has(s)) classes.push('closed');
+
+      // show selection inclusive (exactly what user clicked)
       if (checkIn && !checkOut && iso(checkIn)===s) classes.push('selected');
       if (checkIn && checkOut){
-        const rangeStart = checkIn;
-        const rangeEndEx = addDays(checkOut,1);
-        if (overlap(rangeStart, rangeEndEx, dCopy, addDays(dCopy,1))) classes.push('in-range');
+        if (dCopy >= checkIn && dCopy <= checkOut) classes.push('in-range');
       }
 
       const avail = roomsAvailableOn(s);
-      const countLine = el('div', {style:'line-height:1;margin-top:-2px;font-size:10px;color:#666'}, `${avail}`);
-      const cell = el('div', {class:classes.join(' ')}, String(dCopy.getDate()), countLine);
+      const cell = el('div', {class:classes.join(' ')},
+        String(dCopy.getDate()),
+        el('div', {style:'line-height:1;margin-top:-2px;font-size:10px;color:#666'}, `${avail}`)
+      );
       cell.addEventListener('click', () => onDateClick(dCopy, closed.has(s)));
       grid.appendChild(cell);
     }
@@ -214,46 +206,101 @@ function onDateClick(d, isClosed){
   updateRightPanels();
 }
 
-/* ===================== RIGHT PANELS ===================== */
+/* ===================== RIGHT SIDE ===================== */
 function renderFilters(container){
   container.innerHTML = '';
   container.appendChild(el('h3',{class:'panel-title'},'Filters'));
 
-  const ciRow = el('div',{id:'cirow', style:'margin-bottom:10px;font-weight:600'});
+  // Check-in/out + Summary (moved UP)
+  const ciRow = el('div',{id:'cirow', class:'double-space strong'});
   container.appendChild(ciRow);
+  const summaryTop = el('div',{id:'summaryTop', class:'summary-box'});
+  container.appendChild(summaryTop);
 
-  const line1 = el('div', {class:'filters-row'},
-    labelChk('Wheelchair','f_wc', val => {selection.filters.wc = val; updatePanelsAndBlocks();}),
-    labelChk('Pet-friendly','f_pet', val => {selection.filters.pet = val; updatePanelsAndBlocks();}),
-    labelChk('AC','f_ac', val => {selection.filters.ac = val; updatePanelsAndBlocks();}),
-    labelChk('Group','f_grp', val => {selection.filters.group = val; updatePanelsAndBlocks();})
+  // Checkboxes
+  const line1 = el('div', {class:'filters-row double-space'},
+    labelChk('Wheelchair','f_wc', val => {selection.filters.wc = val; refreshAfterFilter();}),
+    labelChk('Pet-friendly','f_pet', val => {selection.filters.pet = val; refreshAfterFilter();}),
+    labelChk('AC','f_ac', val => {selection.filters.ac = val; refreshAfterFilter();}),
+    labelChk('Group','f_grp', val => {selection.filters.group = val; refreshAfterFilter();})
   );
 
   // Single occupancy dropdown (1..4)
-  const occ = el('select', {id:'occ', style:'margin-left:8px;height:34px;border:1px solid #e5e5e5;border-radius:8px;padding:4px 8px'},
+  const occ = el('select', {id:'occ', class:'select'},
     ...[1,2,3,4].map(n => el('option', {value:String(n)}, String(n)))
   );
   occ.value = '1';
   occ.addEventListener('change', e => {
     const v = Math.max(1, Math.min(4, parseInt(e.target.value,10)));
-    selection.filters.minOcc = v;
-    selection.filters.maxOcc = v;
-    updatePanelsAndBlocks();
+    selection.filters.occ = v;
+    refreshAfterFilter();
   });
 
-  const line2 = el('div', {class:'filters-row', style:'margin-top:10px'},
+  const line2 = el('div', {class:'filters-row double-space'},
     el('span', {}, 'Occupancy:'), occ
   );
 
   container.appendChild(line1);
   container.appendChild(line2);
 
-  const blocksWrap = el('div',{id:'blocksWrap', class:'blocks-grid'}); // two rows, spaced
+  // Block pills (always show ALL blocks, clickable to toggle + show room numbers)
+  const blocksWrap = el('div',{id:'blocksWrap', class:'blocks-grid double-space'});
+  const blockRooms = el('div',{id:'blockRooms', class:'block-rooms'});
   container.appendChild(blocksWrap);
+  container.appendChild(blockRooms);
 
   updateFiltersDynamic();
 }
+
+// small helpers
+function labelChk(text, id, onchg){
+  const i = el('input',{type:'checkbox',id});
+  i.addEventListener('change', e => onchg(e.target.checked));
+  return el('label',{for:id,style:'margin-right:16px'}, text+' ', i);
+}
+
+// filtering logic
+function filterRoomsRaw(){
+  const f = selection.filters;
+  return inventory.filter(r => {
+    if (f.wc && !r.wc) return false;
+    if (f.pet && !r.pet) return false;
+    if (f.ac && !r.ac) return false;
+    if (f.group && !r.groupPerm) return false;
+    if (f.occ < r.min || f.occ > r.max) return false;
+    // availability in selected range (if both chosen)
+    if (checkIn && checkOut && !isRoomAvailableInSelectedRange(r)) return false;
+    return true;
+  });
+}
+function isRoomAvailableInSelectedRange(room){
+  if (!(checkIn && checkOut)) return true;
+  const key = room.block + room.num;
+  for (let d = new Date(checkIn); d <= checkOut; d = addDays(d,1)){
+    const k = iso(d);
+    if (bookedByDate[k] && bookedByDate[k].has(key)) return false;
+  }
+  return true;
+}
+function roomsByBlock(rooms){
+  const map = {};
+  rooms.forEach(r => {
+    (map[r.block] ||= []).push(r);
+  });
+  return map;
+}
+function blockCountsAllBlocks(){
+  // counts respecting current filters (attr+occ+dates) but listing ALL blocks
+  const rooms = filterRoomsRaw();
+  const byB = roomsByBlock(rooms);
+  const allBlocks = Array.from(new Set(inventory.map(r=>r.block))).sort();
+  const out = {};
+  allBlocks.forEach(b => out[b] = (byB[b]||[]).length);
+  return {counts: out, byBlock: byB};
+}
+
 function updateFiltersDynamic(){
+  // Check-in/out line
   const ciRow = document.getElementById('cirow');
   if (ciRow){
     const ci = checkIn ? iso(checkIn) : '—';
@@ -261,128 +308,175 @@ function updateFiltersDynamic(){
     ciRow.textContent = `Check-in: ${ci}   |   Check-out: ${co}`;
   }
 
+  // Summary (quick)
+  renderSummaryTop();
+
+  // Blocks
   const wrap = document.getElementById('blocksWrap');
-  if (!wrap) return;
+  const roomsBox = document.getElementById('blockRooms');
+  if (!wrap || !roomsBox) return;
 
-  const roomsNow = filterRoomsRaw(); // attribute + occupancy only
-  const counts = blockCounts(roomsNow);
-
+  const {counts, byBlock} = blockCountsAllBlocks();
   if (selection.filters.blocksIncluded.size === 0){
     Object.keys(counts).forEach(b => selection.filters.blocksIncluded.add(b));
   }
 
   wrap.innerHTML = '';
-  Object.entries(counts).sort(([a],[b])=>a.localeCompare(b)).forEach(([blk,count])=>{
+  Object.keys(counts).sort().forEach(blk=>{
+    const count = counts[blk];
     const active = selection.filters.blocksIncluded.has(blk);
     const pill = el('button', {class:'block-pill' + (active?' active':''), type:'button'},
       `${blk}: ${count} room(s)`
     );
     pill.addEventListener('click', ()=>{
+      // toggle include/exclude
       if (active) selection.filters.blocksIncluded.delete(blk);
       else selection.filters.blocksIncluded.add(blk);
-      updatePanelsAndBlocks();
+      // also open this block to show room numbers
+      selection.filters.blockOpen = blk;
+      refreshAfterFilter();
     });
     wrap.appendChild(pill);
   });
-}
-function labelChk(text, id, onchg){
-  const i = el('input',{type:'checkbox',id});
-  i.addEventListener('change', e => onchg(e.target.checked));
-  return el('label',{for:id,style:'margin-right:16px'}, text+' ', i);
-}
 
-// -------- filtering logic --------
-function filterRoomsRaw(){
-  const f = selection.filters;
-  return inventory.filter(r => {
-    if (f.wc && !r.wc) return false;
-    if (f.pet && !r.pet) return false;
-    if (f.ac && !r.ac) return false;
-    if (f.group && !r.groupPerm) return false; // now uses "Group Booking Permitted"
-    if (r.min > f.maxOcc) return false;
-    if (r.max < f.minOcc) return false;
-    return true;
-  });
-}
-function isRoomAvailableInSelectedRange(room){
-  if (!(checkIn && checkOut)) return true; // no range chosen -> treat as free
-  const key = room.block + room.num;
-  const start = checkIn;
-  const endEx = addDays(checkOut,1);
-  for (let d = new Date(start); d < endEx; d = addDays(d,1)){
-    const k = iso(d);
-    if (bookedByDate[k] && bookedByDate[k].has(key)) return false;
+  // Show room numbers for the currently "open" block
+  roomsBox.innerHTML = '';
+  const open = selection.filters.blockOpen || Object.keys(counts).sort()[0];
+  if (open){
+    const list = byBlock[open] || [];
+    roomsBox.appendChild(el('div',{class:'block-rooms-title'}, `Rooms available in ${open}:`));
+    if (!list.length){
+      roomsBox.appendChild(el('div',{}, 'None'));
+    } else {
+      const ul = el('div',{class:'room-list'});
+      list.sort((a,b)=>a.num.localeCompare(b.num)).forEach(r=>{
+        const key = r.block + r.num;
+        const selected = selection.roomsSelected.has(key);
+        // occupants dropdown per room (min..max)
+        const occSel = el('select',{class:'select small'},
+          ...Array.from({length: r.max - r.min + 1}, (_,i)=> r.min + i)
+                 .map(n => el('option', {value:String(n)}, String(n)))
+        );
+        occSel.value = String(selected ? selection.roomsSelected.get(key) : r.min);
+        occSel.addEventListener('change', e=>{
+          const val = parseInt(e.target.value,10);
+          if (val>0) selection.roomsSelected.set(key, val);
+          renderSummaryTop(); // update totals
+        });
+
+        const item = el('div',{class:'room-row'},
+          el('button',{class:'room-btn' + (selected?' selected':''), type:'button',
+            onclick: ()=>{
+              if (selection.roomsSelected.has(key)){
+                selection.roomsSelected.delete(key);
+                item.querySelector('.room-btn').classList.remove('selected');
+              }else{
+                selection.roomsSelected.set(key, parseInt(occSel.value,10));
+                item.querySelector('.room-btn').classList.add('selected');
+              }
+              renderSummaryTop();
+            }
+          }, `${r.block}${r.num}`),
+          occSel
+        );
+        ul.appendChild(item);
+      });
+      roomsBox.appendChild(ul);
+    }
   }
-  return true;
-}
-function filterRoomsApplyBlocksAndDates(){
-  const f = selection.filters;
-  return filterRoomsRaw()
-    .filter(r => f.blocksIncluded.has(r.block))
-    .filter(isRoomAvailableInSelectedRange);
-}
-function blockCounts(rooms){
-  const map = {};
-  rooms.forEach(r => map[r.block] = (map[r.block]||0)+1);
-  return map;
 }
 
-function renderRooms(container){
-  container.innerHTML = '';
-  container.appendChild(el('h3',{class:'panel-title'},'Rooms (from CSV if present)'));
-
-  const rooms = filterRoomsApplyBlocksAndDates();
-  const counts = blockCounts(rooms);
-  const blocksLine = el('div', {style:'margin-bottom:8px'});
-  Object.entries(counts).sort(([a],[b])=>a.localeCompare(b)).forEach(([blk,count])=>{
-    blocksLine.appendChild(el('span',{class:'block-pill'}, `${blk}: ${count} room(s)`));
-  });
-  if (rooms.length===0) blocksLine.appendChild(el('div',{},'No rooms match the selected filters / dates.'));
-  container.appendChild(blocksLine);
-
-  const list = el('div');
-  rooms.forEach(r => {
-    const key = r.block + r.num;
-    const chip = el('span', {class:'room-chip' + (selection.roomsSelected.includes(key)?' selected':'')},
-      `${r.block}${r.num} (min ${r.min}/max ${r.max})`
-    );
-    chip.addEventListener('click', () => {
-      const i = selection.roomsSelected.indexOf(key);
-      if (i>=0) selection.roomsSelected.splice(i,1);
-      else selection.roomsSelected.push(key);
-      chip.classList.toggle('selected');
-      renderSummary(document.getElementById('summary'));
-    });
-    list.appendChild(chip);
-  });
-  container.appendChild(list);
+function refreshAfterFilter(){
+  updateFiltersDynamic();
+  updateRightPanels();
 }
 
-function renderSummary(container){
-  container.innerHTML = '';
-  container.appendChild(el('h3',{class:'panel-title'},'Summary'));
+/* ---------- Summary (top, concise) ---------- */
+function renderSummaryTop(){
+  const box = document.getElementById('summaryTop');
+  if (!box) return;
 
+  const totalPeople = Array.from(selection.roomsSelected.values()).reduce((a,b)=>a+b,0);
+  // Clamp food counts to total people
+  if (selection.food.veg + selection.food.nonveg > totalPeople){
+    selection.food.nonveg = Math.max(0, totalPeople - selection.food.veg);
+  }
+
+  box.innerHTML = '';
   const ci = checkIn ? iso(checkIn) : '—';
   const co = checkOut ? iso(checkOut) : '—';
-  container.appendChild(el('div', {}, `Check-in: ${ci}`));
-  container.appendChild(el('div', {}, `Check-out: ${co}`));
 
   let nights = 0;
-  if (checkIn && checkOut && checkOut > checkIn) {
-    nights = Math.max(0, Math.round((checkOut - checkIn)/(1000*60*60*24)));
+  if (checkIn && checkOut && checkOut >= checkIn){
+    nights = Math.round((startOfDay(checkOut) - startOfDay(checkIn))/(1000*60*60*24)) + 1 - 1;
+    // inclusive display; room-nights use (checkOut - checkIn)
+    nights = Math.max(0, nights + ((checkOut>checkIn)?0:0));
+    nights = (checkIn && checkOut) ? Math.max(0, Math.round((checkOut - checkIn)/(1000*60*60*24))) : 0;
   }
-  container.appendChild(el('div', {}, `Nights: ${nights}`));
-  container.appendChild(el('div', {style:'margin-top:6px'}, `Rooms selected: ${selection.roomsSelected.join(', ') || '—'}`));
-  container.appendChild(el('div', {style:'margin-top:6px'}, 'Rooms CSV: data/uploads/rooms.csv. Optional: data/uploads/bookings.csv.'));
+
+  // Veg/Non-veg controls
+  const foodRow = el('div',{class:'food-row double-space'},
+    el('label',{},'Veg ', el('input',{type:'number',min:'0',value:String(selection.food.veg),class:'num',
+      oninput:(e)=>{ selection.food.veg = Math.max(0, Math.min(totalPeople, parseInt(e.target.value||'0',10))); renderSummaryTop(); }
+    })),
+    el('label',{},'Non-veg ', el('input',{type:'number',min:'0',value:String(selection.food.nonveg),class:'num',
+      oninput:(e)=>{ selection.food.nonveg = Math.max(0, parseInt(e.target.value||'0',10)); 
+                     if (selection.food.veg + selection.food.nonveg > totalPeople){
+                       selection.food.nonveg = Math.max(0, totalPeople - selection.food.veg);
+                       e.target.value = String(selection.food.nonveg);
+                     }
+                     renderSummaryTop();
+      }
+    })),
+    el('span',{class:'hint'}, ` (must total ≤ ${totalPeople})`)
+  );
+
+  // Amounts (placeholder ₹0 until tariff mapping per room type)
+  const perNight = 0;
+  const totalAmount = perNight * nights * selection.roomsSelected.size;
+
+  box.appendChild(el('div',{}, `Check-in: ${ci}   |   Check-out: ${co}`));
+  box.appendChild(el('div',{}, `Rooms selected: ${selection.roomsSelected.size}   |   Occupants: ${totalPeople}`));
+  box.appendChild(foodRow);
+  box.appendChild(el('div',{}, `Room-nights: ${nights * selection.roomsSelected.size}   |   Amount/night: ₹${perNight.toFixed(0)}   |   Total: ₹${totalAmount.toFixed(0)}`));
+}
+
+/* ---------- Rooms panel (detailed list still shown below) ---------- */
+function renderRooms(container){
+  container.innerHTML = '';
+  container.appendChild(el('h3',{class:'panel-title'},'Rooms (available with current filters & dates)'));
+
+  const rooms = filterRoomsRaw().filter(r => selection.filters.blocksIncluded.has(r.block));
+  const byB = roomsByBlock(rooms);
+  const counts = {};
+  Object.keys(byB).forEach(b => counts[b] = byB[b].length);
+
+  // quick counts strip
+  const strip = el('div',{class:'counts-strip'});
+  Object.keys(counts).sort().forEach(b=>{
+    strip.appendChild(el('span',{class:'block-pill'}, `${b}: ${counts[b]} room(s)`));
+  });
+  if (!Object.keys(counts).length) strip.appendChild(el('div',{},'No rooms match the selected filters / dates.'));
+  container.appendChild(strip);
+
+  // detailed room list for the currently open block is rendered above (in filters) already
+}
+
+/* ---------- Bottom summary (unchanged content but kept in sync) ---------- */
+function renderSummary(container){
+  // We keep the bottom panel minimal since the top summary now shows everything.
+  container.innerHTML = '';
+  container.appendChild(el('h3',{class:'panel-title'},'Summary'));
+  const top = document.getElementById('summaryTop');
+  if (top){
+    // mirror the same lines
+    container.appendChild(el('div',{}, top.textContent));
+  }
 }
 
 function updateRightPanels(){
   renderRooms(document.getElementById('rooms'));
   renderSummary(document.getElementById('summary'));
-}
-function updatePanelsAndBlocks(){
-  updateRightPanels();
-  updateFiltersDynamic();
 }
 
 /* ===================== Boot ===================== */
@@ -395,7 +489,7 @@ async function main(){
   ]);
   config = {rules, restricted, longWeekends:lweek, tariff};
 
-  // Load rooms (CSV or the "Room Classification List.csv") - comma or tab separated
+  // Load rooms CSV (supports your headings exactly)
   const roomsCSV = await tryFetchText([
     'data/uploads/rooms.csv',
     'data/uploads/Room%20Classification%20List.csv',
@@ -407,19 +501,19 @@ async function main(){
     inventory = norm.length ? norm : [];
   }
   if (!inventory.length){
-    // fallback demo inventory
+    // fallback small demo so page doesn't break (remove when your CSV is live)
     inventory = [
-      {block:'A', num:'1', ac:false, pet:false, wc:false, min:1, max:2, groupPerm:false},
-      {block:'A', num:'3', ac:false, pet:false, wc:false, min:1, max:2, groupPerm:false},
-      {block:'B', num:'9', ac:false, pet:false, wc:false, min:1, max:3, groupPerm:false},
-      {block:'C', num:'8', ac:true,  pet:true,  wc:false, min:2, max:4, groupPerm:true},
-      {block:'C', num:'9', ac:true,  pet:true,  wc:false, min:2, max:4, groupPerm:true},
-      {block:'D', num:'2', ac:true,  pet:true,  wc:true,  min:1, max:3, groupPerm:true},
-      {block:'E', num:'1', ac:true,  pet:false, wc:false, min:2, max:4, groupPerm:true},
+      {block:'A', num:'1', floor:'0', min:1, max:2, ac:false, wc:false, pet:false, groupPerm:false},
+      {block:'A', num:'3', floor:'0', min:1, max:2, ac:false, wc:false, pet:false, groupPerm:false},
+      {block:'B', num:'9', floor:'1', min:1, max:3, ac:false, wc:false, pet:false, groupPerm:false},
+      {block:'C', num:'8', floor:'1', min:2, max:4, ac:true,  wc:false, pet:true,  groupPerm:true},
+      {block:'C', num:'9', floor:'1', min:2, max:4, ac:true,  wc:false, pet:true,  groupPerm:true},
+      {block:'D', num:'2', floor:'0', min:1, max:3, ac:true,  wc:true,  pet:true,  groupPerm:true},
+      {block:'E', num:'1', floor:'0', min:2, max:4, ac:true,  wc:false, pet:false, groupPerm:true},
     ];
   }
 
-  // Load optional bookings
+  // Optional bookings
   const bookingsCSV = await tryFetchText(['data/uploads/bookings.csv']);
   if (bookingsCSV){
     const rows = parseCSV(bookingsCSV);
@@ -429,6 +523,7 @@ async function main(){
   }
   bookedByDate = buildBookedByDate(bookings);
 
+  // set blocksIncluded to ALL blocks initially
   selection.filters.blocksIncluded = new Set(inventory.map(r=>r.block));
 
   renderCalendar(document.getElementById('calendar'), restricted);
@@ -441,4 +536,3 @@ main().catch(err => {
   if (s) s.textContent = 'Error: ' + err.message;
   console.error(err);
 });
-
