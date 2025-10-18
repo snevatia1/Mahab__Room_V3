@@ -84,4 +84,14 @@ function renderCalendar(container, restricted){
     ));
     const head = el('div', {class:'month-grid'});
     dow.forEach(d => head.a
+                /* --- minimal patch for weekend color + left calendar layout --- */
+main{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1200px;margin:16px auto;padding:0 16px}
+#calendar{grid-column:1/2;background:#fff;border:1px solid #eee;border-radius:12px;padding:12px;max-height:72vh;overflow-y:auto}
+.month{padding:8px 4px 10px;border-top:1px dashed #eee}
+.month:first-child{border-top:0}
+.month-title{font-weight:600;margin:4px 0 8px}
+.month-grid{display:grid;grid-template-columns:repeat(7,40px);gap:6px}
+.weekday-head{font-size:11px;color:#999;text-align:center;margin-bottom:4px}
+.date.weekend{background:#f7f7ff;border-color:#e5e5ff} /* weekend color */
+
 
