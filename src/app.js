@@ -1,4 +1,15 @@
-import { el, badge } from './display.js';
+// ------- tiny DOM helpers (kept inline so we only touch ONE file) -------
+function el(tag, attrs={}, ...children){
+  const n = document.createElement(tag);
+  Object.entries(attrs).forEach(([k,v]) => {
+    if (k === 'class') n.className = v;
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  });
+  children.flat().forEach(c => n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c));
+  return n;
+}
+function badge(text){ return el('span', {class:'badge'}, text); }
 
 async function loadJSON(path){
   const r = await fetch(path + '?v=' + Date.now());
@@ -6,129 +17,71 @@ async function loadJSON(path){
   return r.json();
 }
 
-function dateRange(start, end){
-  const out = [];
-  const s = new Date(start), e = new Date(end);
-  for(let d = new Date(s); d <= e; d.setDate(d.getDate()+1)){
-    out.push(new Date(d));
-  }
-  return out;
-}
-
 function iso(d){ return d.toISOString().slice(0,10); }
+function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+function addDays(d, n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function rng(a,b){const out=[];for(let x=new Date(a); x<=b; x.setDate(x.getDate()+1)) out.push(new Date(x)); return out;}
 
-function renderCalendar(container, restricted, longWeekends){
-  const today = new Date();
-  const sixMonthsLater = new Date(today); sixMonthsLater.setMonth(today.getMonth()+6);
-  const dates = dateRange(today, sixMonthsLater);
-  const special = new Set();
-  const closed = new Set();
-  (restricted.special_periods || []).forEach(p => dateRange(new Date(p.start), new Date(p.end)).forEach(d => special.add(iso(d))));
-  (restricted.closed_periods || []).forEach(p => dateRange(new Date(p.start), new Date(p.end)).forEach(d => closed.add(iso(d))));
+// -------------------- app state --------------------
+let config = { rules:null, restricted:null, longWeekends:null, tariff:null };
 
+// calendar date range selection (no attributes involved)
+let checkIn = null;
+let checkOut = null;
+
+// right-side UI state
+let selection = {
+  rooms: [],
+  filters: { wc:false, pet:false, ac:false, group:false, minOcc:1, maxOcc:6 }
+};
+
+// demo inventory (calendar shows availability counts from total inventory only)
+// later we’ll swap this for rooms.csv + bookings to compute actual per-date availability.
+const demoRooms = [
+  {block:'A', num:'1', ac:false, pet:false, wc:false, min:1, max:2},
+  {block:'A', num:'3', ac:false, pet:false, wc:false, min:1, max:2},
+  {block:'B', num:'9', ac:false, pet:false, wc:false, min:1, max:3},
+  {block:'C', num:'8', ac:true,  pet:true,  wc:false, min:2, max:4},
+  {block:'C', num:'9', ac:true,  pet:true,  wc:false, min:2, max:4},
+  {block:'D', num:'2', ac:true,  pet:true,  wc:true,  min:1, max:3},
+  {block:'E', num:'1', ac:true,  pet:false, wc:false, min:2, max:4},
+];
+
+// ------- special/closed sets for coloring (calendar-only) -------
+function buildSpecialSets(restricted){
+  const special = new Set(), closed = new Set();
+  (restricted.special_periods || []).forEach(p => rng(new Date(p.start), new Date(p.end)).forEach(d => special.add(iso(d))));
+  (restricted.closed_periods || []).forEach(p => rng(new Date(p.start), new Date(p.end)).forEach(d => closed.add(iso(d))));
+  return {special, closed};
+}
+
+/* ===================== CALENDAR (LEFT) ===================== */
+/* Calendar responsibility: month layout, colors, and ROOMS AVAILABLE COUNT ONLY */
+function roomsAvailableOn(dateISO){
+  // For now we show total inventory as available (no bookings data yet).
+  // When wiring to CSV+bookings, compute: totalRooms - bookedRooms[dateISO]
+  return demoRooms.length;
+}
+
+function renderCalendar(container, restricted){
+  const {special, closed} = buildSpecialSets(restricted);
+
+  // show from today → +6 months, grouped by month
+  const today = startOfDay(new Date());
+  const end   = addDays(new Date(today.getFullYear(), today.getMonth()+6, 1), -1);
   container.innerHTML = '';
-  const wrap = el('div');
-  dates.forEach(d => {
-    const s = iso(d);
-    const classes = ['date'];
-    if (special.has(s)) classes.push('special');
-    if (closed.has(s)) classes.push('closed');
-    const cell = el('div', {class: classes.join(' ')},
-      String(d.getDate())
-    );
-    cell.addEventListener('click', () => {
-      if (closed.has(s)) return;
-      if (cell.classList.contains('selected')) cell.classList.remove('selected');
-      else cell.classList.add('selected');
-      updateSummary();
-    });
-    wrap.appendChild(cell);
-  });
-  container.appendChild(wrap);
-  const legend = el('div', {},
-    badge('Special'),
-    badge('Closed'),
-    badge('Selected')
-  );
-  container.appendChild(legend);
-}
 
-let selection = { rooms: [], people: { member_adults:0, seniors:0, temp_adults:0, kids_5_10:0, kids_11_21:0 }, veg:0, nonveg:0 };
+  const dow = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 
-function renderFilters(container, rules){
-  container.innerHTML = '';
-  const form = el('div', {},
-    el('h3', {}, 'Filters'),
-    el('label', {}, 'Wheelchair ', el('input', {type:'checkbox', id:'f_wc'})),
-    el('label', {style:'margin-left:12px'}, 'Pet-friendly ', el('input', {type:'checkbox', id:'f_pet'})),
-    el('label', {style:'margin-left:12px'}, 'AC ', el('input', {type:'checkbox', id:'f_ac'})),
-    el('div', {style:'margin-top:8px'}, 'Enter People:'),
-    el('input', {type:'number', id:'p_member', placeholder:'Member adults', min:'0', value:'0', style:'width:140px;margin-right:8px'}),
-    el('input', {type:'number', id:'p_senior', placeholder:'Seniors 65+', min:'0', value:'0', style:'width:120px;margin-right:8px'}),
-    el('input', {type:'number', id:'p_temp', placeholder:'Temp adults', min:'0', value:'0', style:'width:120px;margin-right:8px'}),
-    el('input', {type:'number', id:'p_k510', placeholder:'Kids 5-10', min:'0', value:'0', style:'width:100px;margin-right:8px'}),
-    el('input', {type:'number', id:'p_k1121', placeholder:'Kids 11-21', min:'0', value:'0', style:'width:110px'}),
-  );
-  container.appendChild(form);
-}
+  let cursor = new Date(today.getFullYear(), today.getMonth(), 1); // 1st of current month
+  while (cursor <= end){
+    const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+    const monthEnd   = new Date(cursor.getFullYear(), cursor.getMonth()+1, 0);
 
-function renderRooms(container){
-  container.innerHTML = '';
-  const demoRooms = [
-    {block:'A', num:'1', ac:false, pet:false, wc:false, min:1, max:2},
-    {block:'C', num:'8', ac:true, pet:true, wc:false, min:2, max:4},
-    {block:'D', num:'2', ac:true, pet:true, wc:true, min:1, max:3}
-  ];
-  const header = el('h3', {}, 'Rooms (demo) – load your CSV to replace');
-  container.appendChild(header);
-  const list = el('div');
-  demoRooms.forEach(r => {
-    const chip = el('span', {class:'room-chip'}, `${r.block}${r.num} (min ${r.min}/max ${r.max})`);
-    chip.addEventListener('click', () => {
-      chip.classList.toggle('selected');
-      const key = r.block + r.num;
-      const i = selection.rooms.indexOf(key);
-      if (i>=0) selection.rooms.splice(i,1); else selection.rooms.push(key);
-      updateSummary();
-    });
-    list.appendChild(chip);
-  });
-  container.appendChild(list);
-}
+    const m = el('div', {class:'month'});
+    m.appendChild(el('div', {class:'month-title'},
+      monthStart.toLocaleString(undefined, {month:'long', year:'numeric'})
+    ));
+    const head = el('div', {class:'month-grid'});
+    dow.forEach(d => head.a
 
-async function updateSummary(){
-  const s = document.getElementById('summary');
-  if (!s) return;
-  const selectedDates = Array.from(document.querySelectorAll('.date.selected')).length;
-  const nights = Math.max(0, selectedDates-1);
-  // Basic calc demo
-  s.innerHTML = '';
-  s.appendChild(el('h3', {}, 'Summary'));
-  s.appendChild(el('div', {}, 'Rooms selected: ' + selection.rooms.join(', ')));
-  s.appendChild(el('div', {}, 'Nights (approx): ' + nights));
-  s.appendChild(el('div', {}, 'Tip: replace demo with your data/uploads/*.csv to activate real pricing.'));
-}
-
-async function main(){
-  const [rules, restricted, lweek, tariff] = await Promise.all([
-    loadJSON('data/config/rules.json'),
-    loadJSON('data/config/restricted_periods.json'),
-    loadJSON('data/config/long_weekends.json'),
-    loadJSON('data/config/tariff.json')
-  ]);
-  window.__rules = rules;
-  window.__restricted = restricted;
-  window.__longWeekends = lweek;
-  window.__tariff = tariff;
-
-  renderCalendar(document.getElementById('calendar'), restricted, lweek);
-  renderFilters(document.getElementById('filters'), rules);
-  renderRooms(document.getElementById('rooms'));
-  updateSummary();
-}
-
-main().catch(err => {
-  const s = document.getElementById('summary');
-  if (s) s.textContent = 'Error: ' + err.message;
-  console.error(err);
-});
