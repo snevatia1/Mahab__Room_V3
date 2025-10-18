@@ -1,0 +1,44 @@
+{
+  "long_weekends": [
+    {
+      "start": "2025-03-14",
+      "end": "2025-03-16",
+      "label": "Holi"
+    },
+    {
+      "start": "2025-03-28",
+      "end": "2025-03-31",
+      "label": "Ramzan Eid"
+    },
+    {
+      "start": "2025-04-18",
+      "end": "2025-04-20",
+      "label": "Good Friday"
+    },
+    {
+      "start": "2025-05-09",
+      "end": "2025-05-12",
+      "label": "Buddha Purnima"
+    },
+    {
+      "start": "2026-01-24",
+      "end": "2026-01-26",
+      "label": "Republic Day"
+    },
+    {
+      "start": "2026-03-20",
+      "end": "2026-03-22",
+      "label": "Eid-al-Fitr"
+    },
+    {
+      "start": "2026-04-03",
+      "end": "2026-04-05",
+      "label": "Good Friday"
+    },
+    {
+      "start": "2026-05-01",
+      "end": "2026-05-03",
+      "label": "Labour/Maharashtra Day"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+Block,Room No,Floor,Min Person,Max Person,Airconditioning,Wheel Chair Access,Pets Permitted,Group Booking Permitted,Beds,Notes
+A,1,0,1,2,No,No,No,Yes,1,"Example schema row; REPLACE with your actual rooms.csv"

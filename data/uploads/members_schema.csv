@@ -1,0 +1,2 @@
+MemberID,Name,Category,Senior(65+),Phone,Email,Status,OutstandingDues,Address,Notes
+M0001,Sample Member,Member,No,9999999999,sample@example.com,Active,0,,Seed row; REPLACE with your actual members.csv

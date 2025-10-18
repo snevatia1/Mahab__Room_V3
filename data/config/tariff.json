@@ -1,0 +1,40 @@
+{
+  "meta": {
+    "currency": "INR",
+    "gst_included": true,
+    "generated_at": "2025-10-18T16:11:38"
+  },
+  "regular": {
+    "Revised Tariff": {},
+    "MEMBER                        (Double Occupancy)": {},
+    "Extra Adult                           (10 & above10)": {},
+    "Extra Child                           (5 & above 5 upto 10)": {},
+    "MEMBER                      (Single Occupancy in Double room)": {},
+    "MEMBER                      (Single Occupancy in single room)": {},
+    "MEMBER  Senior Citizen (65 & above) Double Occupancy": {},
+    "Extra Adult                          (Senior Citizen)": {},
+    "MEMBER                               (Senior Citizen )                              Single Occupancy in double room": {},
+    "MEMBER                               (Senior Citizen )                              Single Occupancy in Single room": {},
+    "TEMPORARY MEMBER (Double Occupancy)": {},
+    "TEMPORARY MEMBER (Single Occupancy in double room)": {},
+    "TEMPORARY MEMBER (Single Occupancy in single room)": {}
+  },
+  "special": {
+    "Revised Tariff": {},
+    "MEMBER                        (Double Occupancy)": {},
+    "Extra Adult                           (10 & above10)": {},
+    "Extra Child                           (5 & above 5 upto 10)": {},
+    "MEMBER                      (Single Occupancy in Double room)": {},
+    "MEMBER                      (Single Occupancy in single room)": {},
+    "MEMBER  Senior Citizen (65 & above) Double Occupancy": {},
+    "Extra Adult                          (Senior Citizen)": {},
+    "MEMBER                               (Senior Citizen )                              Single Occupancy in double room": {},
+    "MEMBER                               (Senior Citizen )                              Single Occupancy in Single room": {},
+    "TEMPORARY MEMBER (Double Occupancy)": {},
+    "TEMPORARY MEMBER (Single Occupancy in double room)": {},
+    "TEMPORARY MEMBER (Single Occupancy in single room)": {}
+  },
+  "addons": {
+    "aircon_per_night": 1000
+  }
+}

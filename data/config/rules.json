@@ -1,0 +1,138 @@
+{
+  "version": "v8",
+  "effective_dates": {
+    "policy": "2025-08-27",
+    "amendment": "2025-10-17",
+    "cancellation_policy": "2025-07-15"
+  },
+  "booking_windows_days": {
+    "members_dependents_parents": 180,
+    "members_with_guests": 90,
+    "temporary_members": 60
+  },
+  "max_live_bookings_per_member": 2,
+  "room_limits": {
+    "weekday_member_max_rooms": 6,
+    "weekend_member_max_rooms": 1,
+    "weekend_temp_additional_rooms": 2,
+    "unaccompanied_temp_max_rooms": 3
+  },
+  "senior_discount_percent": 10,
+  "ac_addon_per_night": 1000,
+  "blocks": {
+    "pet_friendly": [
+      "D",
+      "C-New:C7-C10"
+    ],
+    "single_occupancy_rooms": [
+      "A1",
+      "A3",
+      "A7",
+      "A8",
+      "A9",
+      "B9",
+      "C9",
+      "C10",
+      "D1",
+      "D2",
+      "E1",
+      "E2"
+    ],
+    "ac_blocks": [
+      "C",
+      "D",
+      "E"
+    ]
+  },
+  "group_booking": {
+    "min_rooms": 10,
+    "max_rooms": 19,
+    "min_nights": 2,
+    "max_nights": 5,
+    "deposit_amount": 20000,
+    "block_caps": {
+      "C": 10,
+      "A": 9
+    },
+    "allowed_in_special_periods": false
+  },
+  "cancellation_modification": {
+    "member_temp_regular": {
+      "more_than_7_days": {
+        "cancellation_percent": 10,
+        "modification_charge": 0
+      },
+      "two_to_seven_days": {
+        "cancellation_percent": 20,
+        "modification_charge": 1000
+      },
+      "less_than_2_days_or_noshow": {
+        "cancellation_percent": null,
+        "first_two_days_100pct": true,
+        "modification_allowed": false
+      }
+    },
+    "member_temp_special": {
+      "more_than_30_days": {
+        "cancellation_percent": 10,
+        "modification_charge": 0
+      },
+      "seven_to_thirty_days": {
+        "cancellation_percent": 20,
+        "modification_charge": 2000
+      },
+      "two_to_seven_days": {
+        "cancellation_percent": 50,
+        "modification_charge": 3000
+      },
+      "less_than_2_days_or_noshow": {
+        "cancellation_percent": 100,
+        "modification_allowed": false
+      }
+    },
+    "group": {
+      "complete": {
+        "more_than_7_days": {
+          "deposit_forfeit": 20000
+        },
+        "two_to_seven_days": {
+          "cancellation_percent": 20,
+          "modification_charge": 5000
+        },
+        "less_than_2_days": {
+          "cancellation_percent": 50,
+          "modification_allowed": false
+        }
+      },
+      "partial": {
+        "more_than_7_days": {
+          "cancellation_percent": 10,
+          "modification_charge": 0
+        },
+        "two_to_seven_days": {
+          "cancellation_percent": 20,
+          "modification_charge": 1000
+        },
+        "less_than_2_days": {
+          "cancellation_percent": 100,
+          "modification_allowed": false
+        }
+      },
+      "notes": [
+        "One free modification per group booking; increases in booking value are not charged.",
+        "Guest details must be submitted before 7:00 pm prior to arrival; no name changes thereafter."
+      ]
+    },
+    "waiver_policy": {
+      "bereavement_relations": [
+        "parents",
+        "spouse",
+        "children",
+        "siblings",
+        "in-laws"
+      ],
+      "requires_documentation": true,
+      "committee_discretion": true
+    }
+  }
+}
