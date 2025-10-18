@@ -43,20 +43,19 @@ let checkOut = null;
 // right-side UI state
 let selection = {
   roomsSelected: [],
-  filters: { wc:false, pet:false, ac:false, group:false, minOcc:1, maxOcc:6, blocksIncluded: new Set() }
+  filters: { wc:false, pet:false, ac:false, group:false, minOcc:1, maxOcc:1, blocksIncluded: new Set() }
 };
 
 // inventory (from CSV if present; fallback to demo)
 let inventory = [];
 
-// CSV parser (very tolerant)
+// CSV parser (simple)
 function parseCSV(text){
   const lines = text.split(/\r?\n/).filter(x=>x.trim().length);
   if (lines.length===0) return [];
   const header = lines[0].split(',').map(s=>s.trim());
   return lines.slice(1).map(line=>{
-    // simple split; handles values without embedded commas (sufficient for our schema)
-    const cells = line.split(','); 
+    const cells = line.split(',');
     const row = {};
     header.forEach((h,i)=> row[h] = (cells[i]??'').trim());
     return row;
@@ -67,9 +66,10 @@ function toBool(v){
   return ['yes','y','true','1'].includes(s);
 }
 function normalizeRooms(rows){
-  // Expect columns: Block,Room No,Floor,Min Person,Max Person,Airconditioning,Wheel Chair Access,Pets Permitted
+  // Expected columns (case-insensitive tolerated):
+  // Block, Room No, Min Person, Max Person, Airconditioning, Wheel Chair Access, Pets Permitted
   return rows.map(r=>({
-    block: (r['Block']||'').trim() || (r['BLOCK']||'').trim(),
+    block: (r['Block']||r['BLOCK']||'').trim(),
     num:   (r['Room No']||r['Room']||r['RoomNo']||'').toString().trim(),
     ac:    toBool(r['Airconditioning']||r['AC']),
     wc:    toBool(r['Wheel Chair Access']||r['Wheelchair']||r['WC']),
@@ -131,20 +131,23 @@ function renderCalendar(container, restricted){
     for(let i=0;i<monthStart.getDay();i++) grid.appendChild(el('span'));
 
     for(let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate()+1)){
-      const s = iso(d);
+      // IMPORTANT: capture date per cell to fix the "wrong date selected" bug
+      const dCopy = new Date(d);
+      const s = iso(dCopy);
+
       const classes = ['date'];
-      const wday = d.getDay();
+      const wday = dCopy.getDay();
       if (wday===0 || wday===6) classes.push('weekend');
       if (special.has(s)) classes.push('special');
       if (closed.has(s)) classes.push('closed');
 
       if (checkIn && !checkOut && iso(checkIn)===s) classes.push('selected');
-      if (checkIn && checkOut && (d>=checkIn && d<=checkOut)) classes.push('in-range');
+      if (checkIn && checkOut && (dCopy>=checkIn && dCopy<=checkOut)) classes.push('in-range');
 
       const avail = roomsAvailableOn(s);
       const countLine = el('div', {style:'line-height:1;margin-top:-2px;font-size:10px;color:#666'}, `${avail}`);
-      const cell = el('div', {class:classes.join(' ')}, String(d.getDate()), countLine);
-      cell.addEventListener('click', () => onDateClick(new Date(d), closed.has(s)));
+      const cell = el('div', {class:classes.join(' ')}, String(dCopy.getDate()), countLine);
+      cell.addEventListener('click', () => onDateClick(dCopy, closed.has(s)));
       grid.appendChild(cell);
     }
     m.appendChild(grid);
@@ -161,9 +164,10 @@ function renderCalendar(container, restricted){
 
 function onDateClick(d, isClosed){
   if (isClosed) return;
-  if (!checkIn || (checkIn && checkOut)){ checkIn = startOfDay(d); checkOut = null; }
-  else if (d > checkIn){ checkOut = startOfDay(d); }
-  else { checkIn = startOfDay(d); checkOut = null; }
+  const day = startOfDay(d);
+  if (!checkIn || (checkIn && checkOut)){ checkIn = day; checkOut = null; }
+  else if (day > checkIn){ checkOut = day; }
+  else { checkIn = day; checkOut = null; }
   renderCalendar(document.getElementById('calendar'), config.restricted);
   updateFiltersDynamic();  // refresh CI/CO display
   updateRightPanels();
@@ -175,32 +179,38 @@ function renderFilters(container){
   container.appendChild(el('h3',{class:'panel-title'},'Filters'));
 
   // Check-in/out display (live)
-  const ciRow = el('div',{id:'cirow', style:'margin-bottom:8px;font-weight:600'});
+  const ciRow = el('div',{id:'cirow', style:'margin-bottom:10px;font-weight:600'});
   container.appendChild(ciRow);
 
-  // Filters row 1
-  const line1 = el('div',{},
-    labelChk('Wheelchair','f_wc', val => {selection.filters.wc = val; updateRightPanels();}),
-    gap(),
-    labelChk('Pet-friendly','f_pet', val => {selection.filters.pet = val; updateRightPanels();}),
-    gap(),
-    labelChk('AC','f_ac', val => {selection.filters.ac = val; updateRightPanels();}),
-    gap(),
-    labelChk('Group','f_grp', val => {selection.filters.group = val; updateRightPanels();})
+  // Row: attribute checkboxes
+  const line1 = el('div', {class:'filters-row'},
+    labelChk('Wheelchair','f_wc', val => {selection.filters.wc = val; updatePanelsAndBlocks();}),
+    labelChk('Pet-friendly','f_pet', val => {selection.filters.pet = val; updatePanelsAndBlocks();}),
+    labelChk('AC','f_ac', val => {selection.filters.ac = val; updatePanelsAndBlocks();}),
+    labelChk('Group','f_grp', val => {selection.filters.group = val; updatePanelsAndBlocks();})
   );
 
-  // Occupancy with "Min" / "Max" labels
-  const line2 = el('div',{style:'margin-top:8px;display:flex;align-items:center;gap:6px'},
-    el('span',{},'Occupancy:'),
-    el('span',{},'Min'), num('min','f_min',1, v => {selection.filters.minOcc = v; updateRightPanels();}),
-    el('span',{},'Max'), num('max','f_max',6, v => {selection.filters.maxOcc = v; updateRightPanels();})
+  // Single occupancy dropdown 1..4
+  const occ = el('select', {id:'occ', style:'margin-left:8px;height:34px;border:1px solid #e5e5e5;border-radius:8px;padding:4px 8px'},
+    ...[1,2,3,4].map(n => el('option', {value:String(n)}, String(n)))
+  );
+  occ.value = '1';
+  occ.addEventListener('change', e => {
+    const v = Math.max(1, Math.min(4, parseInt(e.target.value,10)));
+    selection.filters.minOcc = v;
+    selection.filters.maxOcc = v;
+    updatePanelsAndBlocks();
+  });
+
+  const line2 = el('div', {class:'filters-row', style:'margin-top:10px'},
+    el('span', {}, 'Occupancy:'), occ
   );
 
   container.appendChild(line1);
   container.appendChild(line2);
 
   // Block chips (clickable) + counts (live)
-  const blocksWrap = el('div',{id:'blocksWrap', style:'margin-top:12px'});
+  const blocksWrap = el('div',{id:'blocksWrap', class:'blocks-grid'});
   container.appendChild(blocksWrap);
 
   updateFiltersDynamic();
@@ -214,11 +224,11 @@ function updateFiltersDynamic(){
     ciRow.textContent = `Check-in: ${ci}   |   Check-out: ${co}`;
   }
 
-  // Blocks and counts (live, affected by current attribute/occ filters)
+  // Blocks and counts (live, affected by current attribute & occupancy filters)
   const wrap = document.getElementById('blocksWrap');
   if (!wrap) return;
 
-  const roomsNow = filterRoomsRaw(); // apply attribute/min/max filters only
+  const roomsNow = filterRoomsRaw(); // apply attribute/occupancy only
   const counts = blockCounts(roomsNow);
 
   // Initialize blocksIncluded on first run (all blocks ON)
@@ -229,14 +239,13 @@ function updateFiltersDynamic(){
   wrap.innerHTML = '';
   Object.entries(counts).sort(([a],[b])=>a.localeCompare(b)).forEach(([blk,count])=>{
     const active = selection.filters.blocksIncluded.has(blk);
-    const pill = el('span', {class:'block-pill', style: active? 'background:#e6f4ff;border-color:#91caff' : ''},
+    const pill = el('button', {class:'block-pill' + (active?' active':''), type:'button'},
       `${blk}: ${count} room(s)`
     );
     pill.addEventListener('click', ()=>{
       if (active) selection.filters.blocksIncluded.delete(blk);
       else selection.filters.blocksIncluded.add(blk);
-      updateRightPanels();          // this will re-count with block filter applied
-      updateFiltersDynamic();       // repaint pills with active state
+      updatePanelsAndBlocks();      // re-count with block filter applied
     });
     wrap.appendChild(pill);
   });
@@ -245,13 +254,9 @@ function updateFiltersDynamic(){
 function labelChk(text, id, onchg){
   const i = el('input',{type:'checkbox',id});
   i.addEventListener('change', e => onchg(e.target.checked));
-  return el('label',{for:id,style:'margin-right:12px'}, text+' ', i);
+  return el('label',{for:id,style:'margin-right:16px'}, text+' ', i);
 }
-function num(ph,id,def,onchg){
-  const i = el('input',{type:'number',id,placeholder:ph,min:'1',value:String(def),style:'width:80px;margin-left:6px'});
-  i.addEventListener('input', e => onchg(Math.max(1, parseInt(e.target.value||'1',10))));
-  return i;
-}
+
 function gap(){ return el('span',{style:'display:inline-block;width:12px'}); }
 
 // Filter logic for right panel
@@ -279,7 +284,7 @@ function blockCounts(rooms){
 
 function renderRooms(container){
   container.innerHTML = '';
-  container.appendChild(el('h3',{class:'panel-title'},'Rooms (demo) – load your CSV to replace'));
+  container.appendChild(el('h3',{class:'panel-title'},'Rooms (from CSV if present)'));
 
   const rooms = filterRoomsApplyBlocks();
   const counts = blockCounts(rooms);
@@ -323,12 +328,16 @@ function renderSummary(container){
   }
   container.appendChild(el('div', {}, `Nights: ${nights}`));
   container.appendChild(el('div', {style:'margin-top:6px'}, `Rooms selected: ${selection.roomsSelected.join(', ') || '—'}`));
-  container.appendChild(el('div', {style:'margin-top:6px'}, 'Tip: upload data/uploads/rooms.csv to replace demo.'));
+  container.appendChild(el('div', {style:'margin-top:6px'}, 'Tip: place rooms CSV at data/uploads/rooms.csv (or Room Classification List.csv).'));
 }
 
 function updateRightPanels(){
   renderRooms(document.getElementById('rooms'));
   renderSummary(document.getElementById('summary'));
+}
+function updatePanelsAndBlocks(){
+  updateRightPanels();
+  updateFiltersDynamic();
 }
 
 /* ===================== Boot ===================== */
@@ -341,7 +350,7 @@ async function main(){
   ]);
   config = {rules, restricted, longWeekends:lweek, tariff};
 
-  // Load rooms from CSV if present (either name works)
+  // Load rooms from CSV if present (support both names)
   const csvText = await tryFetchText([
     'data/uploads/rooms.csv',
     'data/uploads/Room%20Classification%20List.csv',
@@ -368,10 +377,3 @@ main().catch(err => {
   if (s) s.textContent = 'Error: ' + err.message;
   console.error(err);
 });
-
-
-
-
-
-
-
