@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Club Mahabaleshwar Booking</title>
+  <link rel="stylesheet" href="styles.css?v=2">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+</head>
+<body>
+  <header>
+    <img src="clubmahabaleshwar_logo.png" alt="Club Logo" class="logo" onerror="this.onerror=null; this.style.display='none'; document.querySelector('.logo-fallback').style.display='block';">
+    <div class="logo-fallback" style="display:none; color:red; font-size:48px; font-weight:bold;">CM Since 1881</div>
+    <h1>The Club Mahabaleshwar - Room Booking (Test Mode - Updated)</h1>
+  </header>
+  <section id="calendar">
+    <h2>6-Month Calendar (Oct 2025 - Mar 2026)</h2>
+    <div id="calendar-container"></div>
+  </section>
+  <section id="availability">
+    <h2>Room Availability</h2>
+    <label>Start Date: <input type="date" id="avail-start" onchange="updateAvailability()"></label>
+    <label>End Date: <input type="date" id="avail-end" onchange="updateAvailability()"></label>
+    <div id="avail-results"></div>
+  </section>
+  <button onclick="startBooking()">Start Booking</button>
+  <div id="booking-wizard" style="display:none;">
+    <h2>Booking Wizard for <span id="member-name"></span></h2>
+    <form id="booking-form">
+      <label>Start Date: <input type="date" id="start-date" required></label>
+      <label>End Date: <input type="date" id="end-date" required></label>
+      <label>Member Adults: <input type="number" id="mem-adults" min="0"></label>
+      <label>Senior Members: <input type="number" id="seniors" min="0"></label>
+      <label>Member Children ≤10: <input type="number" id="mem-children-10" min="0"></label>
+      <label>Member Children 11-21: <input type="number" id="mem-children-11-21" min="0"></label>
+      <label>Temp Member Adults: <input type="number" id="temp-adults" min="0"></label>
+      <label>Temp Member Children 5-10: <input type="number" id="temp-children" min="0"></label>
+      <label>Wheelchair Access: <input type="checkbox" id="wheelchair"></label>
+      <label>Pets: <input type="checkbox" id="pets"></label>
+      <label>AC: <input type="checkbox" id="ac"></label>
+      <label>Single Occupancy: <input type="checkbox" id="single"></label>
+      <div id="member-list">
+        <h3>Member Details (Up to 5)</h3>
+        <!-- JS adds rows -->
+      </div>
+      <div id="temp-member-list">
+        <h3>Temp Member Details (Up to 5)</h3>
+        <!-- JS adds rows -->
+      </div>
+      <label>Waiting List if Unavailable: <input type="checkbox" id="waiting
